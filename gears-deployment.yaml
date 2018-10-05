@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gears-api
+  labels:
+    app: gears-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gears-api
+  template:
+    metadata:
+      labels:
+        app: gears-api
+    spec:
+      containers:
+      - name: gears-api
+        image: asia.gcr.io/gears-218311/gears:v0.1.12
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        livenessProbe:
+          httpGet:
+            path: /jsonapi/model
+            port: 8080
+            httpHeaders:
+            - name: X-Gears-Header
+              value: Healthcheck
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        volumeMounts:
+        - name: project
+          mountPath: '/project'
+      initContainers:
+      - name: gears-api-init
+        image: asia.gcr.io/gears-218311/gears:v0.1.12
+        command:
+        - '/usr/local/bin/gears-cli'
+        - '-p'
+        - '/project'
+        - 'init'
+        volumeMounts:
+        - name: project
+          mountPath: '/project'
+      volumes:
+        - name: project
+          emptyDir: {}
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: gears-api
+spec:
+  selector:
+    app: gears-api
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
